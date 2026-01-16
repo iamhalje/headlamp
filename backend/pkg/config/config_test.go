@@ -40,6 +40,7 @@ func TestParseBasic(t *testing.T) {
 				assert.Equal(t, false, conf.DevMode)
 				assert.Equal(t, "", conf.ListenAddr)
 				assert.Equal(t, uint(4466), conf.Port)
+				assert.Equal(t, "main", conf.InClusterContextName)
 				assert.Equal(t, "profile,email", conf.OidcScopes)
 				assert.Equal(t, config.DefaultMeUsernamePath, conf.MeUsernamePath)
 				assert.Equal(t, config.DefaultMeEmailPath, conf.MeEmailPath)
@@ -81,6 +82,16 @@ var ParseWithEnvTests = []struct {
 		},
 		verify: func(t *testing.T, conf *config.Config) {
 			assert.Equal(t, "superSecretBotsStayAwayPlease", conf.OidcClientSecret)
+		},
+	},
+	{
+		name: "incluster_context_name_from_env",
+		args: []string{"go run ./cmd", "--in-cluster"},
+		env: map[string]string{
+			"HEADLAMP_CONFIG_IN_CLUSTER_CONTEXT_NAME": "prod-main",
+		},
+		verify: func(t *testing.T, conf *config.Config) {
+			assert.Equal(t, "prod-main", conf.InClusterContextName)
 		},
 	},
 	{
@@ -213,6 +224,13 @@ func TestParseFlags(t *testing.T) {
 			args: []string{"go run ./cmd", "--enable-helm"},
 			verify: func(t *testing.T, conf *config.Config) {
 				assert.Equal(t, true, conf.EnableHelm)
+			},
+		},
+		{
+			name: "incluster_context_name_flag",
+			args: []string{"go run ./cmd", "--in-cluster-context-name=my-cluster"},
+			verify: func(t *testing.T, conf *config.Config) {
+				assert.Equal(t, "my-cluster", conf.InClusterContextName)
 			},
 		},
 	}

@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/kubernetes-sigs/headlamp/backend/pkg/config"
 	"github.com/kubernetes-sigs/headlamp/backend/pkg/kubeconfig"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -315,7 +314,38 @@ func createTempKubeconfig(t *testing.T, content string) string {
 }
 
 func TestContext(t *testing.T) {
-	kubeConfigFile := config.GetDefaultKubeConfigPath()
+	// Create a fake API server for testing proxy requests.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/version" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"major":"1","minor":"28"}`))
+			return
+		}
+
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(ts.Close)
+
+	kubeConfigFile := createTempKubeconfig(t, fmt.Sprintf(`
+apiVersion: v1
+kind: Config
+clusters:
+- name: test-cluster
+  cluster:
+    server: %q
+contexts:
+- name: minikube
+  context:
+    cluster: test-cluster
+    user: test-user
+    namespace: default
+current-context: minikube
+users:
+- name: test-user
+  user:
+    token: test-token
+`, ts.URL))
+	t.Cleanup(func() { _ = os.Remove(kubeConfigFile) })
 
 	configStore := kubeconfig.NewContextStore()
 
